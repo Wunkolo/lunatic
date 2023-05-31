@@ -34,14 +34,22 @@ void X64Backend::CompileUpdateFlags(CompileContext const& context, IRUpdateFlags
   if (op->flag_c) mask |= 0x20000000;
   if (op->flag_v) mask |= 0x10000000;
 
-  auto pext_mask_reg = reg_alloc.GetTemporaryHostReg();
   auto flags_reg = reg_alloc.GetTemporaryHostReg();
 
   // Convert NZCV bits from AX register into the guest format.
   // Clear the bits which are not to be updated.
+#ifdef LUNATIC_SUPPORT_BMI
+  auto pext_mask_reg = reg_alloc.GetTemporaryHostReg();
+
   code.mov(pext_mask_reg, 0xC101);
   code.pext(flags_reg, eax, pext_mask_reg);
   code.shl(flags_reg, 28);
+#else
+  code.mov(flags_reg, eax);
+  code.and_(flags_reg, 0xC101);
+  code.imul(flags_reg, flags_reg, 0x1021'0000);
+#endif
+
   code.and_(flags_reg, mask);
 
   if (result_reg != input_reg) {

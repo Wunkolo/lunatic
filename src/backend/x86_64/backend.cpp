@@ -241,8 +241,14 @@ void X64Backend::EmitConditionalBranch(Condition condition, Xbyak::Label& label_
   // TODO: Keep decompressed flags in eax?
   code->mov(eax, dword[rcx + state.GetOffsetToCPSR()]);
   code->shr(eax, 28);
+
+#ifdef LUNATIC_SUPPORT_BMI
   code->mov(edx, 0xC101);
   code->pdep(eax, eax, edx);
+#else
+  code->imul(eax, eax, 0x1081);
+  code->and_(eax, 0xC101);
+#endif
 
   switch (condition) {
     case Condition::EQ:

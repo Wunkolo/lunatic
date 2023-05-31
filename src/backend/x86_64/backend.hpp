@@ -19,6 +19,11 @@
 
 using namespace lunatic::frontend;
 
+// TODO: Add a runtime check for that.
+#ifndef __APPLE__
+  #define LUNATIC_SUPPORT_BMI 1
+#endif
+
 namespace lunatic {
 namespace backend {
 
