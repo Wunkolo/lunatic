@@ -41,25 +41,13 @@ X64Backend::X64Backend(
 
 X64Backend::~X64Backend() {
   delete code;
-  memory::free(buffer);
+  delete code_memory_block;
 }
 
 void X64Backend::CreateCodeGenerator() {
-  buffer = reinterpret_cast<u8*>(memory::aligned_alloc(4096, kCodeBufferSize));
-
-  if (buffer == nullptr) {
-    throw std::runtime_error(
-      fmt::format("lunatic: failed to allocate memory for JIT compilation")
-    );
-  }
-
-  Xbyak::CodeArray::protect(
-    buffer,
-    kCodeBufferSize,
-    Xbyak::CodeArray::PROTECT_RWE
-  );
-
-  code = new Xbyak::CodeGenerator{kCodeBufferSize, buffer};
+  code_memory_block = new memory::CodeBlockMemory(kCodeBufferSize);
+  is_writeable = true;
+  code = new Xbyak::CodeGenerator{kCodeBufferSize, code_memory_block->GetPointer()};
 }
 
 void X64Backend::EmitCallBlock() {
@@ -101,6 +89,11 @@ void X64Backend::EmitCallBlock() {
 }
 
 void X64Backend::Compile(BasicBlock& basic_block) {
+  if (!is_writeable) {
+    code_memory_block->ProtectForWrite();
+    is_writeable = true;
+  }
+
   try {
     auto label_return_to_dispatch = Xbyak::Label{};
     auto opcode_size = basic_block.key.Thumb() ? sizeof(u16) : sizeof(u32);
@@ -231,6 +224,16 @@ void X64Backend::Compile(BasicBlock& basic_block) {
       throw;
     }
   }
+}
+
+int X64Backend::Call(BasicBlock const& basic_block, int max_cycles) {
+  if (is_writeable) {
+    code_memory_block->ProtectForExecute();
+    code_memory_block->Invalidate();
+    is_writeable = false;
+  }
+
+  return CallBlock(basic_block.function, max_cycles);
 }
 
 void X64Backend::EmitConditionalBranch(Condition condition, Xbyak::Label& label_skip) {
@@ -508,6 +511,13 @@ auto X64Backend::GetUsedHostRegsFromList(
   }
 
   return regs_used;
+}
+
+std::unique_ptr<Backend> Backend::CreateBackend(CPU::Descriptor const& descriptor,
+                                                State& state,
+                                                BasicBlockCache& block_cache,
+                                                bool const& irq_line) {
+  return std::make_unique<X64Backend>(descriptor, state, block_cache, irq_line);
 }
 
 } // namespace lunatic::backend

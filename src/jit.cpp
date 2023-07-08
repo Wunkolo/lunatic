@@ -11,7 +11,8 @@
 #include "frontend/ir_opt/dead_flag_elision.hpp"
 #include "frontend/state.hpp"
 #include "frontend/translator/translator.hpp"
-#include "backend/x86_64/backend.hpp"
+
+#include "backend/backend.hpp"
 
 using namespace lunatic::frontend;
 using namespace lunatic::backend;
@@ -22,8 +23,8 @@ struct JIT final : CPU {
   JIT(CPU::Descriptor const& descriptor)
       : exception_base(descriptor.exception_base)
       , memory(descriptor.memory)
-      , translator(descriptor)
-      , backend(descriptor, state, block_cache, irq_line) {
+      , translator(descriptor) {
+    backend = Backend::CreateBackend(descriptor, state, block_cache, irq_line);
     passes.push_back(std::make_unique<IRContextLoadStoreElisionPass>());
     passes.push_back(std::make_unique<IRDeadFlagElisionPass>());
     passes.push_back(std::make_unique<IRConstantPropagationPass>());
@@ -89,7 +90,7 @@ struct JIT final : CPU {
         basic_block = Compile(block_key);
       }
 
-      cycles_to_run = backend.Call(*basic_block, cycles_to_run);
+      cycles_to_run = backend->Call(*basic_block, cycles_to_run);
 
       if (WaitForIRQ()) {
         int cycles_executed = cycles_available - cycles_to_run;
@@ -163,7 +164,7 @@ private:
       });
     }
 
-    backend.Compile(*basic_block);
+    backend->Compile(*basic_block);
     block_cache.Set(block_key, basic_block);
     basic_block->micro_blocks.clear();
     return basic_block;
@@ -226,7 +227,7 @@ private:
   State state;
   Translator translator;
   BasicBlockCache block_cache;
-  X64Backend backend;
+  std::unique_ptr<Backend> backend;
   std::vector<std::unique_ptr<IRPass>> passes;
   std::vector<BasicBlock*> exception_causing_basic_blocks;
 };
