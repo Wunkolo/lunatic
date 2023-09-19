@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "backend/backend.hpp"
+#include "common/aligned_memory.hpp"
 #include "frontend/basic_block_cache.hpp"
 #include "frontend/state.hpp"
 #include "register_allocator.hpp"
@@ -37,11 +38,8 @@ struct X64Backend : Backend {
 
  ~X64Backend();
 
-  void Compile(BasicBlock& basic_block);
-
-  auto Call(BasicBlock const& basic_block, int max_cycles) -> int {
-    return CallBlock(basic_block.function, max_cycles);
-  }
+  void Compile(BasicBlock& basic_block) override;
+  int Call(frontend::BasicBlock const& basic_block, int max_cycles) override;
 
 private:
   static constexpr size_t kCodeBufferSize = 32 * 1024 * 1024;
@@ -127,7 +125,8 @@ private:
   bool const& irq_line;
   int (*CallBlock)(BasicBlock::CompiledFn, int);
 
-  u8* buffer;
+  memory::CodeBlockMemory *code_memory_block;
+  bool is_writeable;
   Xbyak::CodeGenerator* code;
 
   std::unordered_map<BasicBlock::Key, std::vector<BasicBlock*>> block_linking_table;
