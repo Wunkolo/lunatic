@@ -63,6 +63,10 @@ struct BasicBlock : PoolObject {
     bool operator!=(Key const& other) const {
       return value != other.value;
     }
+
+    explicit operator bool() const {
+      return value != 0u;
+    }
     
     // bits  0 - 30: address[31:1]
     // bits 31 - 35: CPU mode
@@ -105,6 +109,7 @@ struct BasicBlock : PoolObject {
   struct BranchTarget {
     Key key{};
     u8* patch_location = nullptr;
+    Condition condition = Condition::AL;
   } branch_target;
 
   std::vector<BasicBlock*> linking_blocks;

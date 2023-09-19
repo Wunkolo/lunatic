@@ -54,7 +54,10 @@ private:
   void EmitCallBlock();
 
   void EmitConditionalBranch(Condition condition, Xbyak::Label& label_skip);
+
+  void EmitReturnToDispatchIfNeeded(BasicBlock& basic_block, Xbyak::Label& label_return_to_dispatch);
   void EmitBasicBlockDispatch(Xbyak::Label& label_cache_miss);
+  void EmitBlockLinkingEpilogue(BasicBlock& basic_block);
 
   void Link(BasicBlock& basic_block);
 

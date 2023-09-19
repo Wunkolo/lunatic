@@ -57,6 +57,7 @@ auto Translator::Handle(ARMBranchRelative const& opcode) -> Status {
       mode,
       thumb_mode
     };
+    basic_block->branch_target.condition = opcode.condition;
   }
 
   return Status::BreakBasicBlock;

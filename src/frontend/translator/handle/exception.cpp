@@ -55,6 +55,7 @@ auto Translator::Handle(ARMException const& opcode) -> Status {
       new_mode,
       false
     };
+    basic_block->branch_target.condition = opcode.condition;
   }
 
   return Status::BreakBasicBlock;

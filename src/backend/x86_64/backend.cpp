@@ -94,19 +94,20 @@ void X64Backend::Compile(BasicBlock& basic_block) {
     is_writeable = true;
   }
 
+  const auto& branch_target = basic_block.branch_target;
+  const bool have_conditional_branch = branch_target.key && branch_target.condition != Condition::AL;
+
   try {
     auto label_return_to_dispatch = Xbyak::Label{};
     auto opcode_size = basic_block.key.Thumb() ? sizeof(u16) : sizeof(u32);
-    auto number_of_micro_blocks = basic_block.micro_blocks.size();
 
-    basic_block.function = (BasicBlock::CompiledFn)code->getCurr();
+    basic_block.function = (BasicBlock::CompiledFn) code->getCurr();
 
-    for (size_t i = 0; i < number_of_micro_blocks; i++) {
-      auto const& micro_block = basic_block.micro_blocks[i];
-      auto& emitter  = micro_block.emitter;
+    for(const auto& micro_block : basic_block.micro_blocks) {
+      auto &emitter = micro_block.emitter;
       auto condition = micro_block.condition;
       auto reg_alloc = X64RegisterAllocator{emitter, *code};
-      auto context   = CompileContext{*code, reg_alloc, state};
+      auto context = CompileContext{*code, reg_alloc, state};
 
       auto label_skip = Xbyak::Label{};
       auto label_done = Xbyak::Label{};
@@ -115,63 +116,27 @@ void X64Backend::Compile(BasicBlock& basic_block) {
       EmitConditionalBranch(condition, label_skip);
 
       // Compile each IR opcode inside the micro block
-      for (auto const& op : emitter.Code()) {
+      for(auto const &op: emitter.Code()) {
         CompileIROp(context, op);
         reg_alloc.AdvanceLocation();
       }
 
-      /* Once we reached the end of the basic block,
-       * check if we can emit a jump to an already compiled basic block.
-       * Also update the cycle counter in that case and return to the dispatcher
-       * in the case that we ran out of cycles.
+      /* If the basic block ends in a conditional branch then emit code to handle
+       * block linking right at the end of the ending micro block, so that the
+       * block linking will automatically only execute if the branch condition is true.
        */
-      if (basic_block.enable_fast_dispatch && i == number_of_micro_blocks - 1) {
-        auto& branch_target = basic_block.branch_target;
+      if(&micro_block == &basic_block.micro_blocks.back() && have_conditional_branch) {
+        // Return to the JIT main loop if we ran out of cycles or an IRQ was requested.
+        EmitReturnToDispatchIfNeeded(basic_block, label_return_to_dispatch);
 
-        if (branch_target.key.value != 0) {
-          BasicBlock* target_block;
-
-          if (branch_target.key == basic_block.key) {
-            target_block = &basic_block;
-          } else {
-            target_block = block_cache.Get(branch_target.key);
-          }
-
-          // Return to the dispatcher if we ran out of cycles.
-          code->sub(rbx, basic_block.length);
-          code->jle(label_return_to_dispatch, Xbyak::CodeGenerator::T_NEAR);
-
-          // Return to the dispatcher if there is an IRQ to handle
-          code->mov(rdx, uintptr(&irq_line));
-          code->cmp(byte[rdx], 0);
-          code->jnz(label_return_to_dispatch);
-
-          if (target_block) {
-            // The branch target is already compiled, emit a relative jump to it now.
-            code->jmp((const void*)target_block->function);
-
-            target_block->linking_blocks.push_back(&basic_block);
-          } else {
-            /* The branch target has not been compiled yet.
-             * Create a padding of 5 NOPs and memorize its address, so that a relative jump
-             * can be patched in once the branch target has been compiled.
-             */
-            branch_target.patch_location = code->getCurr<u8*>();
-            code->nop(5);
-
-            /* Memorize that this basic block should link to the branch target,
-             * so that we know which blocks to patch once the branch target has been compiled.
-             */
-            block_linking_table[branch_target.key].push_back(&basic_block);
-          }
-        }
+        EmitBlockLinkingEpilogue(basic_block);
       }
 
       /* The program counter is normally updated via IR opcodes.
        * But if we skipped past the code which'd do that, we need to manually
        * update the program counter.
        */
-      if (condition != Condition::AL) {
+      if(condition != Condition::AL) {
         code->jmp(label_done);
 
         code->L(label_skip);
@@ -185,17 +150,14 @@ void X64Backend::Compile(BasicBlock& basic_block) {
     }
 
     if (basic_block.enable_fast_dispatch) {
-      // Return to the dispatcher if we ran out of cycles.
-      code->sub(rbx, basic_block.length);
-      code->jle(label_return_to_dispatch);
+      // Return to the JIT main loop if we ran out of cycles or an IRQ was requested.
+      EmitReturnToDispatchIfNeeded(basic_block, label_return_to_dispatch);
 
-      // Return to the dispatcher if there is an IRQ to handle
-      code->mov(rdx, uintptr(&irq_line));
-      code->cmp(byte[rdx], 0);
-      code->jnz(label_return_to_dispatch);
-
-      // If the next basic block already is compiled then jump to it.
-      EmitBasicBlockDispatch(label_return_to_dispatch);
+      if(branch_target.key && branch_target.condition == Condition::AL) {
+        EmitBlockLinkingEpilogue(basic_block);
+      } else {
+        EmitBasicBlockDispatch(label_return_to_dispatch);
+      }
 
       code->L(label_return_to_dispatch);
       code->ret();
@@ -325,6 +287,17 @@ void X64Backend::EmitConditionalBranch(Condition condition, Xbyak::Label& label_
   }
 }
 
+void X64Backend::EmitReturnToDispatchIfNeeded(BasicBlock& basic_block, Xbyak::Label& label_return_to_dispatch) {
+  // Return to the dispatcher if we ran out of cycles.
+  code->sub(rbx, basic_block.length);
+  code->jle(label_return_to_dispatch, Xbyak::CodeGenerator::T_NEAR);
+
+  // Return to the dispatcher if there is an IRQ to handle
+  code->mov(rdx, uintptr(&irq_line));
+  code->cmp(byte[rdx], 0);
+  code->jnz(label_return_to_dispatch);
+}
+
 void X64Backend::EmitBasicBlockDispatch(Xbyak::Label& label_cache_miss) {
   // Build the block key from R15 and CPSR.
   // See frontend/basic_block.hpp
@@ -356,6 +329,38 @@ void X64Backend::EmitBasicBlockDispatch(Xbyak::Label& label_cache_miss) {
   code->lahf();
 
   code->jmp(rdi);
+}
+
+void X64Backend::EmitBlockLinkingEpilogue(BasicBlock& basic_block) {
+  auto& branch_target = basic_block.branch_target;
+
+  BasicBlock* target_block;
+
+  if (branch_target.key == basic_block.key) {
+    target_block = &basic_block;
+  } else {
+    target_block = block_cache.Get(branch_target.key);
+  }
+
+  if (target_block) {
+    // The branch target is already compiled, emit a relative jump to it now.
+    code->jmp((const void*)target_block->function);
+
+    target_block->linking_blocks.push_back(&basic_block);
+  } else {
+    /* The branch target has not been compiled yet.
+     * Create a padding of 5 NOPs and memorize its address, so that a relative jump
+     * can be patched in once the branch target has been compiled.
+     */
+    branch_target.patch_location = code->getCurr<u8*>();
+    code->nop(5);
+    code->ret(); // avoid subtracting the cycle count twice.
+
+    /* Memorize that this basic block should link to the branch target,
+     * so that we know which blocks to patch once the branch target has been compiled.
+     */
+    block_linking_table[branch_target.key].push_back(&basic_block);
+  }
 }
 
 void X64Backend::Link(BasicBlock& basic_block) {

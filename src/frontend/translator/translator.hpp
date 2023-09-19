@@ -55,8 +55,8 @@ struct Translator final : ARMDecodeClient<Status> {
   auto Undefined(u32 opcode) -> Status override;
 
 private:
-  void TranslateARM(BasicBlock& basic_block);
-  void TranslateThumb(BasicBlock& basic_block);
+  Status TranslateARM(BasicBlock& basic_block);
+  Status TranslateThumb(BasicBlock& basic_block);
 
   void EmitUpdateNZ();
   void EmitUpdateNZC();

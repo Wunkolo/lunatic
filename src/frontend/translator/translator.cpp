@@ -25,14 +25,21 @@ void Translator::Translate(BasicBlock& basic_block) {
   code_address = basic_block.key.Address() - 2 * opcode_size;
   this->basic_block = &basic_block;
 
-  if (thumb_mode) {
-    TranslateThumb(basic_block);
-  } else {
-    TranslateARM(basic_block);
+  const Status status = thumb_mode ? TranslateThumb(basic_block) : TranslateARM(basic_block);
+
+  /**
+   * If we did not branch and execution can continue as normal,
+   * then set the branch target to the sequentially next instruction to be executed.
+   */
+  if (status == Status::Continue && basic_block.branch_target.key.value == 0u) {
+    const u32 next_pc = code_address + 2 * opcode_size;
+
+    basic_block.branch_target.key = {next_pc, mode, thumb_mode};
+    basic_block.branch_target.condition = Condition::AL;
   }
 }
 
-void Translator::TranslateARM(BasicBlock& basic_block) {
+Status Translator::TranslateARM(BasicBlock& basic_block) {
   auto micro_block = BasicBlock::MicroBlock{};
 
   auto add_micro_block = [&]() {
@@ -46,6 +53,8 @@ void Translator::TranslateARM(BasicBlock& basic_block) {
   };
 
   emitter = &micro_block.emitter;
+
+  Status status = Status::Continue;
 
   for (int i = 0; i < max_block_size; i++) {
     auto instruction = memory.FastRead<u32, Memory::Bus::Code>(code_address);
@@ -63,7 +72,7 @@ void Translator::TranslateARM(BasicBlock& basic_block) {
       break_micro_block(condition);
     }
 
-    auto status = decode_arm(instruction, *this);
+    status = decode_arm(instruction, *this);
 
     if (status == Status::Unimplemented) {
       throw std::runtime_error(
@@ -87,9 +96,11 @@ void Translator::TranslateARM(BasicBlock& basic_block) {
   }
 
   add_micro_block();
+
+  return status;
 }
 
-void Translator::TranslateThumb(BasicBlock& basic_block) {
+Status Translator::TranslateThumb(BasicBlock& basic_block) {
   auto micro_block = BasicBlock::MicroBlock{Condition::AL};
 
   emitter = &micro_block.emitter;
@@ -97,6 +108,8 @@ void Translator::TranslateThumb(BasicBlock& basic_block) {
   auto add_micro_block = [&]() {
     basic_block.micro_blocks.push_back(std::move(micro_block));
   };
+
+  Status status = Status::Continue;
 
   for (int i = 0; i < max_block_size; i++) {
     u32 instruction;
@@ -121,7 +134,7 @@ void Translator::TranslateThumb(BasicBlock& basic_block) {
       }
     }
 
-    auto status = decode_thumb(instruction, *this);
+    status = decode_thumb(instruction, *this);
 
     if (status == Status::Unimplemented) {
       throw std::runtime_error(
@@ -141,6 +154,8 @@ void Translator::TranslateThumb(BasicBlock& basic_block) {
   }
 
   add_micro_block();
+
+  return status;
 }
 
 auto Translator::Undefined(u32 opcode) -> Status {
