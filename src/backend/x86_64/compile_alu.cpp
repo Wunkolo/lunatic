@@ -220,16 +220,29 @@ void X64Backend::CompileSUB(CompileContext const& context, IRSub* op) {
 void X64Backend::CompileRSB(CompileContext const& context, IRRsb* op) {
   DESTRUCTURE_CONTEXT;
 
+  const bool update_host_flags = op->update_host_flags;
+
   auto& result_var = op->result.Unwrap();
-  auto lhs_reg = reg_alloc.GetVariableHostReg(op->lhs.Get());
+  auto& lhs_var = op->lhs.Get();
+  auto lhs_reg = reg_alloc.GetVariableHostReg(lhs_var);
 
-  if (op->rhs.IsConstant()) {
+  if(op->rhs.IsConstant()) {
     auto imm = op->rhs.GetConst().value;
-    auto result_reg = reg_alloc.GetVariableHostReg(result_var);
 
-    code.mov(result_reg, imm);
-    code.sub(result_reg, lhs_reg);
-    code.cmc();
+    if(imm == 0u) {
+      reg_alloc.ReleaseVarAndReuseHostReg(lhs_var, result_var);
+
+      const Xbyak::Reg32 result_reg = reg_alloc.GetVariableHostReg(result_var);
+
+      if(result_reg != lhs_reg) {
+        code.mov(result_reg, lhs_reg);
+      }
+      code.neg(result_reg);
+    } else {
+      const Xbyak::Reg32 result_reg = reg_alloc.GetVariableHostReg(result_var);
+      code.mov(result_reg, imm);
+      code.sub(result_reg, lhs_reg);
+    }
   } else {
     auto& rhs_var = op->rhs.GetVar();
     auto  rhs_reg = reg_alloc.GetVariableHostReg(rhs_var);
@@ -238,14 +251,14 @@ void X64Backend::CompileRSB(CompileContext const& context, IRRsb* op) {
 
     auto result_reg = reg_alloc.GetVariableHostReg(result_var);
 
-    if (result_reg != rhs_reg) {
+    if(result_reg != rhs_reg) {
       code.mov(result_reg, rhs_reg);
     }
     code.sub(result_reg, lhs_reg);
-    code.cmc();
   }
 
-  if (op->update_host_flags) {
+  if(update_host_flags) {
+    code.cmc();
     code.lahf();
     code.seto(al);
   }
