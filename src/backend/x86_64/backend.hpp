@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <dynarmic/devirtualize_x64.hpp>
 #include <lunatic/cpu.hpp>
 #include <fmt/format.h>
 #include <unordered_map>
@@ -50,6 +51,7 @@ private:
     State& state;
   };
 
+  void DevirtualizeMemoryReadWriteMethods();
   void CreateCodeGenerator();
   void EmitCallBlock();
 
@@ -133,6 +135,14 @@ private:
   Xbyak::CodeGenerator* code;
 
   std::unordered_map<BasicBlock::Key, std::vector<BasicBlock*>> block_linking_table;
+
+  Dynarmic::Backend::X64::DevirtualizedCall read_byte_call;
+  Dynarmic::Backend::X64::DevirtualizedCall read_half_call;
+  Dynarmic::Backend::X64::DevirtualizedCall read_word_call;
+
+  Dynarmic::Backend::X64::DevirtualizedCall write_byte_call;
+  Dynarmic::Backend::X64::DevirtualizedCall write_half_call;
+  Dynarmic::Backend::X64::DevirtualizedCall write_word_call;
 };
 
 } // namespace lunatic::backend

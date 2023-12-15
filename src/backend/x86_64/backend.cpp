@@ -35,6 +35,7 @@ X64Backend::X64Backend(
     , coprocessors(descriptor.coprocessors)
     , block_cache(block_cache)
     , irq_line(irq_line) {
+  DevirtualizeMemoryReadWriteMethods();
   CreateCodeGenerator();
   EmitCallBlock();
 }
@@ -42,6 +43,16 @@ X64Backend::X64Backend(
 X64Backend::~X64Backend() {
   delete code;
   delete code_memory_block;
+}
+
+void X64Backend::DevirtualizeMemoryReadWriteMethods() {
+  read_byte_call = Dynarmic::Backend::X64::Devirtualize<&Memory::ReadByte>(&memory);
+  read_half_call = Dynarmic::Backend::X64::Devirtualize<&Memory::ReadHalf>(&memory);
+  read_word_call = Dynarmic::Backend::X64::Devirtualize<&Memory::ReadWord>(&memory);
+
+  write_byte_call = Dynarmic::Backend::X64::Devirtualize<&Memory::WriteByte>(&memory);
+  write_half_call = Dynarmic::Backend::X64::Devirtualize<&Memory::WriteHalf>(&memory);
+  write_word_call = Dynarmic::Backend::X64::Devirtualize<&Memory::WriteWord>(&memory);
 }
 
 void X64Backend::CreateCodeGenerator() {
