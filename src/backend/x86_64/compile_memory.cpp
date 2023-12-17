@@ -193,14 +193,16 @@ void X64Backend::CompileMemoryRead(CompileContext const& context, IRMemoryRead* 
   if (flags & Word) {
     code.and_(kRegArg1.cvt32(), ~3);
     code.mov(rax, read_word_call.fn);
+    code.mov(kRegArg0, read_word_call.arg);
   } else if (flags & Half) {
     code.and_(kRegArg1.cvt32(), ~1);
     code.mov(rax, read_half_call.fn);
+    code.mov(kRegArg0, read_half_call.arg);
   } else if (flags & Byte) {
     code.mov(rax, read_byte_call.fn);
+    code.mov(kRegArg0, read_byte_call.arg);
   }
 
-  code.mov(kRegArg0, uintptr(&memory));
   code.mov(kRegArg2.cvt32(), u32(Memory::Bus::Data));
   code.sub(rsp, stack_offset);
   code.call(rax);
@@ -441,14 +443,16 @@ void X64Backend::CompileMemoryWrite(CompileContext const& context, IRMemoryWrite
   if (flags & Word) {
     code.and_(kRegArg1.cvt32(), ~3);
     code.mov(rax, write_word_call.fn);
+    code.mov(kRegArg0, write_word_call.arg);
   } else if (flags & Half) {
     code.and_(kRegArg1.cvt32(), ~1);
     code.mov(rax, write_half_call.fn);
+    code.mov(kRegArg0, write_half_call.arg);
   } else if (flags & Byte) {
     code.mov(rax, write_byte_call.fn);
+    code.mov(kRegArg0, write_byte_call.arg);
   }
 
-  code.mov(kRegArg0, uintptr(&memory));
   code.mov(kRegArg3.cvt32(), u32(Memory::Bus::Data));
   code.sub(rsp, stack_offset);
   code.call(rax);
