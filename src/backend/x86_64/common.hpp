@@ -32,39 +32,3 @@ using namespace Xbyak::util;
   static constexpr Xbyak::Reg64 kRegArg4 = r8;
   static constexpr Xbyak::Reg64 kRegArg5 = r9;
 #endif
-
-namespace lunatic::backend {
-
-inline auto ReadByte(Memory& memory, u32 address, Memory::Bus bus) -> u8 {
-  return memory.ReadByte(address, bus);
-}
-
-inline auto ReadHalf(Memory& memory, u32 address, Memory::Bus bus) -> u16 {
-  return memory.ReadHalf(address, bus);
-}
-
-inline auto ReadWord(Memory& memory, u32 address, Memory::Bus bus) -> u32 {
-  return memory.ReadWord(address, bus);
-}
-
-inline void WriteByte(Memory& memory, u32 address, Memory::Bus bus, u8 value) {
-  memory.WriteByte(address, value, bus);
-}
-
-inline void WriteHalf(Memory& memory, u32 address, Memory::Bus bus, u16 value) {
-  memory.WriteHalf(address, value, bus);
-}
-
-inline void WriteWord(Memory& memory, u32 address, Memory::Bus bus, u32 value) {
-  memory.WriteWord(address, value, bus);
-}
-
-inline auto ReadCoprocessor(Coprocessor* coprocessor, uint opcode1, uint cn, uint cm, uint opcode2) -> u32 {
-  return coprocessor->Read(opcode1, cn, cm, opcode2);
-}
-
-inline void WriteCoprocessor(Coprocessor* coprocessor, uint opcode1, uint cn, uint cm, uint opcode2, u32 value) {
-  coprocessor->Write(opcode1, cn, cm, opcode2, value);
-}
-
-} // namespace lunatic::backend

@@ -119,7 +119,7 @@ target_include_directories(lunatic PUBLIC
 target_link_libraries(lunatic PRIVATE fmt)
 
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64|AMD64")
-  target_link_libraries(lunatic PRIVATE xbyak)
+  target_link_libraries(lunatic PRIVATE xbyak dynarmic)
 
   if (LUNATIC_INCLUDE_XBYAK_FROM_DIRECTORY)
     target_compile_definitions(lunatic PRIVATE LUNATIC_INCLUDE_XBYAK_FROM_DIRECTORY)

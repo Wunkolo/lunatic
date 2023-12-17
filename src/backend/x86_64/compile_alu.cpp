@@ -168,6 +168,8 @@ void X64Backend::CompileEOR(CompileContext const& context, IRBitwiseEOR* op) {
 void X64Backend::CompileSUB(CompileContext const& context, IRSub* op) {
   DESTRUCTURE_CONTEXT;
 
+  const bool update_host_flags = op->update_host_flags;
+
   auto& lhs_var = op->lhs.Get();
   auto  lhs_reg = reg_alloc.GetVariableHostReg(lhs_var);
 
@@ -176,7 +178,6 @@ void X64Backend::CompileSUB(CompileContext const& context, IRSub* op) {
 
     if (op->result.IsNull()) {
       code.cmp(lhs_reg, imm);
-      code.cmc();
     } else {
       auto& result_var = op->result.Unwrap();
 
@@ -187,15 +188,17 @@ void X64Backend::CompileSUB(CompileContext const& context, IRSub* op) {
       if (result_reg != lhs_reg) {
         code.mov(result_reg, lhs_reg);
       }
-      code.sub(result_reg, imm);
-      code.cmc();
+      if(imm == 1u && update_host_flags) {
+        code.dec(result_reg);
+      } else {
+        code.sub(result_reg, imm);
+      }
     }
   } else {
     auto rhs_reg = reg_alloc.GetVariableHostReg(op->rhs.GetVar());
 
     if (op->result.IsNull()) {
       code.cmp(lhs_reg, rhs_reg);
-      code.cmc();
     } else {
       auto& result_var = op->result.Unwrap();
 
@@ -207,11 +210,11 @@ void X64Backend::CompileSUB(CompileContext const& context, IRSub* op) {
         code.mov(result_reg, lhs_reg);
       }
       code.sub(result_reg, rhs_reg);
-      code.cmc();
     }
   }
 
-  if (op->update_host_flags) {
+  if (update_host_flags) {
+    code.cmc();
     code.lahf();
     code.seto(al);
   }
@@ -221,15 +224,26 @@ void X64Backend::CompileRSB(CompileContext const& context, IRRsb* op) {
   DESTRUCTURE_CONTEXT;
 
   auto& result_var = op->result.Unwrap();
-  auto lhs_reg = reg_alloc.GetVariableHostReg(op->lhs.Get());
+  auto& lhs_var = op->lhs.Get();
+  auto lhs_reg = reg_alloc.GetVariableHostReg(lhs_var);
 
-  if (op->rhs.IsConstant()) {
+  if(op->rhs.IsConstant()) {
     auto imm = op->rhs.GetConst().value;
-    auto result_reg = reg_alloc.GetVariableHostReg(result_var);
 
-    code.mov(result_reg, imm);
-    code.sub(result_reg, lhs_reg);
-    code.cmc();
+    if(imm == 0u) {
+      reg_alloc.ReleaseVarAndReuseHostReg(lhs_var, result_var);
+
+      const Xbyak::Reg32 result_reg = reg_alloc.GetVariableHostReg(result_var);
+
+      if(result_reg != lhs_reg) {
+        code.mov(result_reg, lhs_reg);
+      }
+      code.neg(result_reg);
+    } else {
+      const Xbyak::Reg32 result_reg = reg_alloc.GetVariableHostReg(result_var);
+      code.mov(result_reg, imm);
+      code.sub(result_reg, lhs_reg);
+    }
   } else {
     auto& rhs_var = op->rhs.GetVar();
     auto  rhs_reg = reg_alloc.GetVariableHostReg(rhs_var);
@@ -238,14 +252,14 @@ void X64Backend::CompileRSB(CompileContext const& context, IRRsb* op) {
 
     auto result_reg = reg_alloc.GetVariableHostReg(result_var);
 
-    if (result_reg != rhs_reg) {
+    if(result_reg != rhs_reg) {
       code.mov(result_reg, rhs_reg);
     }
     code.sub(result_reg, lhs_reg);
-    code.cmc();
   }
 
-  if (op->update_host_flags) {
+  if(op->update_host_flags) {
+    code.cmc();
     code.lahf();
     code.seto(al);
   }
@@ -253,6 +267,8 @@ void X64Backend::CompileRSB(CompileContext const& context, IRRsb* op) {
 
 void X64Backend::CompileADD(CompileContext const& context, IRAdd* op) {
   DESTRUCTURE_CONTEXT;
+
+  const bool update_host_flags = op->update_host_flags;
 
   auto& lhs_var = op->lhs.Get();
   auto  lhs_reg = reg_alloc.GetVariableHostReg(lhs_var);
@@ -278,7 +294,11 @@ void X64Backend::CompileADD(CompileContext const& context, IRAdd* op) {
       if (result_reg != lhs_reg) {
         code.mov(result_reg, lhs_reg);
       }
-      code.add(result_reg, imm);
+      if(imm == 1u && !update_host_flags) {
+        code.inc(result_reg);
+      } else {
+        code.add(result_reg, imm);
+      }
     }
   } else {
     auto& rhs_var = op->rhs.GetVar();
@@ -307,7 +327,7 @@ void X64Backend::CompileADD(CompileContext const& context, IRAdd* op) {
     }
   }
 
-  if (op->update_host_flags) {
+  if (update_host_flags) {
     code.lahf();
     code.seto(al);
   }
@@ -379,7 +399,6 @@ void X64Backend::CompileSBC(CompileContext const& context, IRSbc* op) {
       code.mov(result_reg, lhs_reg);
     }
     code.sbb(result_reg, imm);
-    code.cmc();
   } else {
     auto rhs_reg = reg_alloc.GetVariableHostReg(op->rhs.GetVar());
 
@@ -391,10 +410,10 @@ void X64Backend::CompileSBC(CompileContext const& context, IRSbc* op) {
       code.mov(result_reg, lhs_reg);
     }
     code.sbb(result_reg, rhs_reg);
-    code.cmc();
   }
 
   if (op->update_host_flags) {
+    code.cmc();
     code.lahf();
     code.seto(al);
   }
@@ -415,7 +434,6 @@ void X64Backend::CompileRSC(CompileContext const& context, IRRsc* op) {
 
     code.mov(result_reg, imm);
     code.sbb(result_reg, lhs_reg);
-    code.cmc();
   } else {
     auto& rhs_var = op->rhs.GetVar();
     auto  rhs_reg = reg_alloc.GetVariableHostReg(rhs_var);
@@ -428,10 +446,10 @@ void X64Backend::CompileRSC(CompileContext const& context, IRRsc* op) {
       code.mov(result_reg, rhs_reg);
     }
     code.sbb(result_reg, lhs_reg);
-    code.cmc();
   }
 
   if (op->update_host_flags) {
+    code.cmc();
     code.lahf();
     code.seto(al);
   }

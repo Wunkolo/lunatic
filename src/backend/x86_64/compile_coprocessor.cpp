@@ -40,12 +40,16 @@ void X64Backend::CompileMRC(CompileContext const& context, IRReadCoprocessorRegi
   code.mov(kRegArg4, op->opcode2);
 #endif
 
-  code.mov(kRegArg0, u64(coprocessors[op->coprocessor_id]));
+  Coprocessor* coprocessor = coprocessors[op->coprocessor_id];
+
+  code.mov(kRegArg0, u64(coprocessor));
   code.mov(kRegArg1.cvt32(), op->opcode1);
   code.mov(kRegArg2.cvt32(), op->cn);
   code.mov(kRegArg3.cvt32(), op->cm);
 
-  code.mov(rax, u64(ReadCoprocessor));
+  // TODO(fleroviux): cache devirtualized coprocessor member function pointers.
+  const auto read_cop_call = Dynarmic::Backend::X64::Devirtualize<&Coprocessor::Read>(coprocessor);
+  code.mov(rax, read_cop_call.fn);
   code.call(rax);
 
 #ifdef ABI_MSVC
@@ -102,12 +106,16 @@ void X64Backend::CompileMCR(CompileContext const& context, IRWriteCoprocessorReg
   code.mov(kRegArg4, op->opcode2);
 #endif
 
-  code.mov(kRegArg0, u64(coprocessors[op->coprocessor_id]));
+  Coprocessor* coprocessor = coprocessors[op->coprocessor_id];
+
+  code.mov(kRegArg0, u64(coprocessor));
   code.mov(kRegArg1.cvt32(), op->opcode1);
   code.mov(kRegArg2.cvt32(), op->cn);
   code.mov(kRegArg3.cvt32(), op->cm);
 
-  code.mov(rax, u64(WriteCoprocessor));
+  // TODO(fleroviux): cache devirtualized coprocessor member function pointers.
+  const auto write_cop_call = Dynarmic::Backend::X64::Devirtualize<&Coprocessor::Write>(coprocessor);
+  code.mov(rax, write_cop_call.fn);
   code.call(rax);
 
 #ifdef ABI_MSVC

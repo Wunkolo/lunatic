@@ -5,3 +5,5 @@ endif()
 if (NOT TARGET xbyak)
   add_subdirectory(xbyak)
 endif()
+
+add_subdirectory(dynarmic)

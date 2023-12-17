@@ -5,6 +5,8 @@
  * found in the LICENSE file.
  */
 
+#include <dynarmic/devirtualize_x64.hpp>
+
 #include "common.hpp"
 
 namespace lunatic::backend {
@@ -190,12 +192,12 @@ void X64Backend::CompileMemoryRead(CompileContext const& context, IRMemoryRead* 
 
   if (flags & Word) {
     code.and_(kRegArg1.cvt32(), ~3);
-    code.mov(rax, uintptr(&ReadWord));
+    code.mov(rax, read_word_call.fn);
   } else if (flags & Half) {
     code.and_(kRegArg1.cvt32(), ~1);
-    code.mov(rax, uintptr(&ReadHalf));
+    code.mov(rax, read_half_call.fn);
   } else if (flags & Byte) {
-    code.mov(rax, uintptr(&ReadByte));
+    code.mov(rax, read_byte_call.fn);
   }
 
   code.mov(kRegArg0, uintptr(&memory));
@@ -416,38 +418,38 @@ void X64Backend::CompileMemoryWrite(CompileContext const& context, IRMemoryWrite
   Push(code, regs_saved);
 
   if (kRegArg1.cvt32() == source_reg) {
-    code.mov(kRegArg3.cvt32(), address_reg);
-    code.xchg(kRegArg1.cvt32(), kRegArg3.cvt32());
+    code.mov(kRegArg2.cvt32(), address_reg);
+    code.xchg(kRegArg1.cvt32(), kRegArg2.cvt32());
 
     if (flags & Half) {
-      code.movzx(kRegArg3.cvt32(), kRegArg3.cvt16());
+      code.movzx(kRegArg2.cvt32(), kRegArg2.cvt16());
     } else if (flags & Byte) {
-      code.movzx(kRegArg3.cvt32(), kRegArg3.cvt8());
+      code.movzx(kRegArg2.cvt32(), kRegArg2.cvt8());
     }
   } else {
     code.mov(kRegArg1.cvt32(), address_reg);
 
     if (flags & Word) {
-      code.mov(kRegArg3.cvt32(), source_reg);
+      code.mov(kRegArg2.cvt32(), source_reg);
     } else if (flags & Half) {
-      code.movzx(kRegArg3.cvt32(), source_reg.cvt16());
+      code.movzx(kRegArg2.cvt32(), source_reg.cvt16());
     } else if (flags & Byte) {
-      code.movzx(kRegArg3.cvt32(), source_reg.cvt8());
+      code.movzx(kRegArg2.cvt32(), source_reg.cvt8());
     }
   }
 
   if (flags & Word) {
     code.and_(kRegArg1.cvt32(), ~3);
-    code.mov(rax, uintptr(&WriteWord));
+    code.mov(rax, write_word_call.fn);
   } else if (flags & Half) {
     code.and_(kRegArg1.cvt32(), ~1);
-    code.mov(rax, uintptr(&WriteHalf));
+    code.mov(rax, write_half_call.fn);
   } else if (flags & Byte) {
-    code.mov(rax, uintptr(&WriteByte));
+    code.mov(rax, write_byte_call.fn);
   }
 
   code.mov(kRegArg0, uintptr(&memory));
-  code.mov(kRegArg2.cvt32(), u32(Memory::Bus::Data));
+  code.mov(kRegArg3.cvt32(), u32(Memory::Bus::Data));
   code.sub(rsp, stack_offset);
   code.call(rax);
   code.add(rsp, stack_offset);
