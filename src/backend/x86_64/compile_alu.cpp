@@ -188,7 +188,7 @@ void X64Backend::CompileSUB(CompileContext const& context, IRSub* op) {
       if (result_reg != lhs_reg) {
         code.mov(result_reg, lhs_reg);
       }
-      if(imm == 1u && update_host_flags) {
+      if(imm == 1u && !update_host_flags) {
         code.dec(result_reg);
       } else {
         code.sub(result_reg, imm);
