@@ -50,13 +50,14 @@ struct JIT final : CPU {
   }
 
   void SetExceptionBase(u32 new_exception_base) override {
-    if (new_exception_base != exception_base) {
+    if (new_exception_base != this->exception_base) {
       // this is expected to happen rarely, so we just invalidate all blocks that may cause an exception.
       while (!exception_causing_basic_blocks.empty()) {
         block_cache.Set(exception_causing_basic_blocks.front()->key, nullptr);
       }
 
       translator.SetExceptionBase(new_exception_base);
+      this->exception_base = new_exception_base;
     }
   }
 
