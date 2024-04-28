@@ -49,6 +49,10 @@ struct JIT final : CPU {
     return wait_for_irq;
   }
 
+  auto GetExceptionBase() const -> u32 {
+    return exception_base;
+  }
+
   void SetExceptionBase(u32 new_exception_base) override {
     if (new_exception_base != this->exception_base) {
       // this is expected to happen rarely, so we just invalidate all blocks that may cause an exception.
