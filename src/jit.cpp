@@ -2,6 +2,7 @@
  * Copyright (C) 2021 fleroviux
  */
 
+#include <algorithm>
 #include <lunatic/cpu.hpp>
 #include <vector>
 
