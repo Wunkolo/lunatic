@@ -21,6 +21,9 @@ auto Translator::Handle(ARMException const& opcode) -> Status {
     case Exception::Supervisor:
       new_mode = Mode::Supervisor;
       break;
+    case Exception::Undefined:
+      new_mode = Mode::Undefined;
+      break;
     default:
       throw std::runtime_error(fmt::format("unhandled exception vector: 0x{:X}", static_cast<int>(exception)));
   }

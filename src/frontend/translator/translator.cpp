@@ -159,7 +159,11 @@ Status Translator::TranslateThumb(BasicBlock& basic_block) {
 }
 
 auto Translator::Undefined(u32 opcode) -> Status {
-  return Status::Unimplemented;
+  ARMException udf_exception;
+  udf_exception.condition = Condition::AL;
+  udf_exception.exception = Exception::Undefined;
+
+  return Handle(udf_exception);
 }
 
 void Translator::EmitUpdateNZ() {
