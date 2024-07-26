@@ -8,5 +8,3 @@ The following instructions are currently **NOT** emulated:
 - CDP2, STC2, LDC2, MCR2, MRC2 (ARMv5?)
 - MCRR (ARMv5TE)
 - MRRC (ARMv5TE)
-
-Undefined instructions currently throw a runtime exception and do not jump to the ARM undefined exception vector.
