@@ -1,5 +1,4 @@
 The following instructions are currently **NOT** emulated:
-- PLD (ARMv5)
 - BKPT (ARMv5)
 - LDRT/STRT (treated like LDR/STR)
 - VFP instructions

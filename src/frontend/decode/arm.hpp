@@ -373,9 +373,13 @@ inline auto decode_arm(u32 instruction, T& client) -> U {
 
   // TODO: do not decode unconditional opcodes on ARMv4T
   if (condition == Condition::NV) {
-    if (((instruction >> 25) & 7) == 5) {
-      return decode_branch_link_exchange_relative(opcode, client);
+    // NOTE: PLD is stubbed and treated like mov r0, r0
+    switch(opcode >> 25) {
+      case 0b010: return decode_data_processing(Condition::AL, 0x01A00000u, client); // PLD #imm
+      case 0b011: return decode_data_processing(Condition::AL, 0x01A00000u, client); // PLD reg
+      case 0b101: return decode_branch_link_exchange_relative(opcode, client);
     }
+
     return client.Undefined(instruction);
   }
 
