@@ -21,11 +21,6 @@
 
 using namespace lunatic::frontend;
 
-// TODO: Add a runtime check for that.
-#ifndef __APPLE__
-  #define LUNATIC_SUPPORT_BMI 1
-#endif
-
 namespace lunatic {
 namespace backend {
 
@@ -132,6 +127,7 @@ private:
 
   memory::CodeBlockMemory *code_memory_block;
   bool is_writeable;
+  Xbyak::util::Cpu host_cpu;
   Xbyak::CodeGenerator* code;
 
   std::unordered_map<BasicBlock::Key, std::vector<BasicBlock*>> block_linking_table;

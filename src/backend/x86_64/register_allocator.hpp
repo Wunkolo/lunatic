@@ -12,8 +12,10 @@
 
 #ifdef LUNATIC_INCLUDE_XBYAK_FROM_DIRECTORY
   #include <xbyak/xbyak.h>
+  #include <xbyak/xbyak_util.h>
 #else
   #include <xbyak.h>
+  #include <xbyak_util.h>
 #endif
 
 #include "common/optional.hpp"

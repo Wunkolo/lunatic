@@ -218,13 +218,13 @@ void X64Backend::EmitConditionalBranch(Condition condition, Xbyak::Label& label_
   code->mov(eax, dword[rcx + state.GetOffsetToCPSR()]);
   code->shr(eax, 28);
 
-#ifdef LUNATIC_SUPPORT_BMI
+  if (host_cpu.has(Xbyak::util::Cpu::tBMI2)) {
   code->mov(edx, 0xC101);
   code->pdep(eax, eax, edx);
-#else
+  } else {
   code->imul(eax, eax, 0x1081);
   code->and_(eax, 0xC101);
-#endif
+  }
 
   switch (condition) {
     case Condition::EQ:
