@@ -118,7 +118,7 @@ target_include_directories(lunatic PUBLIC
     $<INSTALL_INTERFACE:include>)
 target_link_libraries(lunatic PRIVATE fmt)
 
-if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64|AMD64")
+if (${CMAKE_CXX_COMPILER_ARCHITECTURE_ID} MATCHES "x64|x86_64|AMD64")
   target_link_libraries(lunatic PRIVATE xbyak dynarmic)
 
   if (LUNATIC_INCLUDE_XBYAK_FROM_DIRECTORY)
