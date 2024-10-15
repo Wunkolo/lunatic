@@ -7,7 +7,7 @@ include(../CMakeModules/FindVTune.cmake)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64|AMD64")
+if (${CMAKE_CXX_COMPILER_ARCHITECTURE_ID} MATCHES "x64|x86_64|AMD64")
   set(ARCH_SPECIFIC_SOURCES
     backend/x86_64/backend.cpp
     backend/x86_64/compile_alu.cpp
