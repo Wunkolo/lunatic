@@ -13,14 +13,21 @@
 using namespace lunatic;
 
 struct TestMemory final : public lunatic::Memory {
-  auto ReadByte(u32 address, Bus bus) -> u8 override { return b8[address]; }
+  TestMemory()
+  {
+    b8 = {};
+  }
+
+  auto ReadByte(u32 address, Bus bus) -> u8 override {
+    return b8[address];
+  }
   auto ReadHalf(u32 address, Bus bus) -> u16 override {
     assert(address % 2 == 0);
-    return b16.at(address);
+    return b16.at(address / 2);
   }
   auto ReadWord(u32 address, Bus bus) -> u32 override {
     assert(address % 4 == 0);
-    return b32.at(address);
+    return b32.at(address / 4);
   }
 
   void WriteByte(u32 address, u8 value, Bus bus) override {
@@ -28,11 +35,11 @@ struct TestMemory final : public lunatic::Memory {
   }
   void WriteHalf(u32 address, u16 value, Bus bus) override {
     assert(address % 2 == 0);
-    b16.at(address) = value;
+    b16.at(address / 2) = value;
   }
   void WriteWord(u32 address, u32 value, Bus bus) override {
     assert(address % 4 == 0);
-    b32.at(address) = value;
+    b32.at(address / 4) = value;
   }
 
   union {
