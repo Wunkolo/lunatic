@@ -7,6 +7,18 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/CMakeModu
 
 option(LUNATIC_NDS_ROM_TEST "Build the NDS ROM unit test" OFF)
 
+add_executable(
+  lunatic-tests
+  alu.cpp
+)
+target_link_libraries(
+  lunatic-tests
+  PRIVATE
+  lunatic
+  fmt
+  Catch2::Catch2WithMain
+)
+
 if(LUNATIC_ROM_TEST)
 	set(SOURCES
 	main.cpp)
